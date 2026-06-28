@@ -1,22 +1,9 @@
-FROM ghcr.io/astral-sh/uv:debian-slim
-ENV DEBIAN_FRONTEND=noninteractive
+FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1
-ENV LANG=en_US.UTF-8
-ENV PATH="/app/.venv/bin:$PATH"
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        build-essential \
-        bash \
-        git \
-        curl \
-        ca-certificates \
-        locales && \
-    locale-gen en_US.UTF-8 && \
-    rm -rf /var/lib/apt/lists/*
+ENV PYTHONPATH=/app
 WORKDIR /app
 COPY . .
-RUN uv lock
-RUN uv sync --locked
+RUN pip install --no-cache-dir fastapi uvicorn[standard] motor pymongo pyrofork TgCrypto python-dotenv pydantic httpx aiofiles jinja2 python-multipart
 RUN chmod +x start.sh
 EXPOSE 8000
 CMD ["bash", "start.sh"]
