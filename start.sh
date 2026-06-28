@@ -7,4 +7,5 @@ if [ -f "$CONFIG_FILE" ]; then
     export $(grep -v '^#' "$CONFIG_FILE" | xargs)
 fi
 
-python3 -m Backend
+cd /app
+PYTHONPATH=/app python3 -m Backend
