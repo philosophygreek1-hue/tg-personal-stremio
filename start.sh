@@ -8,4 +8,5 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 
 cd /app
-PYTHONPATH=/app python3 -m Backend
+export PYTHONPATH=/app
+python3 -m Backend
