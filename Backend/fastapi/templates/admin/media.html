@@ -1,0 +1,145 @@
+{% extends "admin/base.html" %}
+{% block title %}Media — My Videos Admin{% endblock %}
+{% block nav_media %}active{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+    <div class="page-title" style="margin:0">📹 Videos
+      {% if current_folder != 'all' %}
+        {% for f in folders %}{% if f._id == current_folder %} — {{ f.name }}{% endif %}{% endfor %}
+      {% endif %}
+    </div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+      <a class="btn btn-secondary btn-sm {% if current_folder == 'all' %}btn-primary{% endif %}" href="/media/manage?folder_id=all">All</a>
+      <a class="btn btn-secondary btn-sm {% if current_folder == 'root' %}btn-primary{% endif %}" href="/media/manage?folder_id=root">📂 Uncategorized</a>
+      {% for folder in folders %}
+      <a class="btn btn-secondary btn-sm {% if current_folder == folder._id %}btn-primary{% endif %}" href="/media/manage?folder_id={{ folder._id }}">📁 {{ folder.name }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+      <input type="text" id="searchBox" placeholder="Search videos..." style="flex:1" oninput="filterTable(this.value)">
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Original Filename</th>
+          <th>Size</th>
+          <th>Folder</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="videoTable">
+        {% for video in videos %}
+        <tr data-title="{{ video.title|lower }}">
+          <td><strong>{{ video.title }}</strong></td>
+          <td style="color:var(--muted);font-size:.8rem">{{ video.original_filename }}</td>
+          <td style="color:var(--muted);font-size:.8rem">{{ video.file_size }}</td>
+          <td>
+            {% if video.folder_id == 'root' %}
+              <span class="badge badge-root">Uncategorized</span>
+            {% else %}
+              {% for f in folders %}{% if f._id == video.folder_id %}<span class="badge badge-folder">{{ f.name }}</span>{% endif %}{% endfor %}
+            {% endif %}
+          </td>
+          <td>
+            <div style="display:flex;gap:.4rem">
+              <button class="btn btn-secondary btn-sm" onclick="openRenameVideo('{{ video._id }}','{{ video.title|replace("'","\\'")|replace('"','\\"') }}')">Rename</button>
+              <button class="btn btn-secondary btn-sm" onclick="openMoveVideo('{{ video._id }}')">Move</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteVideo('{{ video._id }}')">Delete</button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:2rem">No videos here yet. Upload videos to your Telegram channel.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="color:var(--muted);font-size:.8rem;margin-top:.75rem">Showing {{ videos|length }} videos</div>
+  </div>
+</div>
+
+<!-- Rename Video Modal -->
+<div class="modal-overlay" id="renameVideoModal">
+  <div class="modal">
+    <div class="modal-title">Rename Video</div>
+    <input type="text" id="renameVideoInput" placeholder="New title...">
+    <input type="hidden" id="renameVideoId">
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-primary" onclick="doRenameVideo()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Move Video Modal -->
+<div class="modal-overlay" id="moveVideoModal">
+  <div class="modal">
+    <div class="modal-title">Move to Folder</div>
+    <select id="moveFolderSelect" style="width:100%;margin-bottom:.75rem">
+      <option value="root">📂 Uncategorized</option>
+      {% for folder in folders %}
+      <option value="{{ folder._id }}">📁 {{ folder.name }}</option>
+      {% endfor %}
+    </select>
+    <input type="hidden" id="moveVideoId">
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-primary" onclick="doMoveVideo()">Move</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterTable(q) {
+  document.querySelectorAll('#videoTable tr[data-title]').forEach(row => {
+    row.style.display = row.dataset.title.includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+
+function openRenameVideo(id, title) {
+  document.getElementById('renameVideoId').value = id;
+  document.getElementById('renameVideoInput').value = title;
+  document.getElementById('renameVideoModal').classList.add('open');
+}
+
+function openMoveVideo(id) {
+  document.getElementById('moveVideoId').value = id;
+  document.getElementById('moveVideoModal').classList.add('open');
+}
+
+function closeModals() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+}
+
+async function doRenameVideo() {
+  const id = document.getElementById('renameVideoId').value;
+  const title = document.getElementById('renameVideoInput').value.trim();
+  if (!title) return toast('Enter a title', false);
+  const r = await apiCall(`/api/videos/${id}/rename`, 'POST', {title});
+  if (r.success) { toast('Renamed'); setTimeout(() => location.reload(), 800); }
+  else toast('Failed', false);
+}
+
+async function doMoveVideo() {
+  const id = document.getElementById('moveVideoId').value;
+  const folder_id = document.getElementById('moveFolderSelect').value;
+  const r = await apiCall(`/api/videos/${id}/move`, 'POST', {folder_id});
+  if (r.success) { toast('Moved'); setTimeout(() => location.reload(), 800); }
+  else toast('Failed', false);
+}
+
+async function deleteVideo(id) {
+  if (!confirm('Remove this video from the library? (Telegram file stays intact)')) return;
+  const r = await apiCall(`/api/videos/${id}`, 'DELETE');
+  if (r.success) { toast('Deleted'); setTimeout(() => location.reload(), 800); }
+  else toast('Failed', false);
+}
+</script>
+{% endblock %}

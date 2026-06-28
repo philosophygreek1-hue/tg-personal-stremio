@@ -1,0 +1,106 @@
+{% extends "admin/base.html" %}
+{% block title %}Home — My Videos Admin{% endblock %}
+{% block nav_home %}active{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-title">Dashboard</div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-value">{{ total_videos }}</div>
+      <div class="stat-label">Total Videos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ folders|length }}</div>
+      <div class="stat-label">Folders</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📁 Folders</div>
+    <div class="input-row" style="margin-bottom:1rem">
+      <input type="text" id="newFolderName" placeholder="New folder name..." style="flex:1">
+      <button class="btn btn-primary" onclick="createFolder()">+ Create Folder</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Folder Name</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="folderList">
+        {% for folder in folders %}
+        <tr id="row-{{ folder._id }}">
+          <td>📁 {{ folder.name }}</td>
+          <td style="display:flex;gap:.5rem">
+            <button class="btn btn-secondary btn-sm" onclick="openRename('{{ folder._id }}','{{ folder.name }}')">Rename</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteFolder('{{ folder._id }}')">Delete</button>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="2" style="color:var(--muted);text-align:center">No folders yet. Create one above.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Quick Links</div>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+      <a class="btn btn-secondary" href="/media/manage">📹 Manage Videos</a>
+      <a class="btn btn-secondary" href="/media/manage?folder_id=root">📂 Uncategorized</a>
+    </div>
+  </div>
+</div>
+
+<!-- Rename Modal -->
+<div class="modal-overlay" id="renameModal">
+  <div class="modal">
+    <div class="modal-title">Rename Folder</div>
+    <input type="text" id="renameInput" placeholder="New name...">
+    <input type="hidden" id="renameFolderId">
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="doRename()">Save</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function createFolder() {
+  const name = document.getElementById('newFolderName').value.trim();
+  if (!name) return toast('Enter a folder name', false);
+  const r = await apiCall('/api/folders/create', 'POST', {name});
+  if (r.success) { toast('Folder created'); setTimeout(() => location.reload(), 800); }
+  else toast('Failed', false);
+}
+
+function openRename(id, name) {
+  document.getElementById('renameFolderId').value = id;
+  document.getElementById('renameInput').value = name;
+  document.getElementById('renameModal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('renameModal').classList.remove('open');
+}
+async function doRename() {
+  const id = document.getElementById('renameFolderId').value;
+  const name = document.getElementById('renameInput').value.trim();
+  if (!name) return toast('Enter a name', false);
+  const r = await apiCall(`/api/folders/${id}/rename`, 'POST', {name});
+  if (r.success) { toast('Renamed'); setTimeout(() => location.reload(), 800); }
+  else toast('Failed', false);
+}
+
+async function deleteFolder(id) {
+  if (!confirm('Delete folder? Videos inside will be moved to Uncategorized.')) return;
+  const r = await apiCall(`/api/folders/${id}`, 'DELETE');
+  if (r.success) { toast('Deleted'); setTimeout(() => location.reload(), 800); }
+  else toast('Failed', false);
+}
+</script>
+{% endblock %}
